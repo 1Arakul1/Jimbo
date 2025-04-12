@@ -11,6 +11,8 @@ class User(AbstractUser):
     birth_date = models.DateField(blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
 
+    email = models.EmailField(unique=True, verbose_name='email address') # Added unique=True
+
     groups = models.ManyToManyField(
         'auth.Group',
         verbose_name='groups',
