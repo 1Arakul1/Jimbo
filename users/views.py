@@ -4,10 +4,13 @@ from django.contrib.auth import authenticate, login, logout as django_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from .forms import LoginForm, RegisterForm, EditProfileForm
-from dogs.models import Dog
-from django.core.mail import send_mail, EmailMessage  # Импортируем EmailMessage
+from django.core.mail import send_mail, EmailMessage
 from django.conf import settings
+from django.template.loader import render_to_string
+from .forms import LoginForm, RegisterForm, EditProfileForm, PasswordResetRequestForm
+from dogs.models import Dog
+import secrets
+from users.models import User  # Import your custom user model
 
 @login_required
 def user_profile(request):
@@ -80,27 +83,27 @@ def register(request):
             try:
                 user = form.save()
 
+                # Генерация и отправка письма с подтверждением регистрации
                 subject = 'Добро пожаловать в наш питомник!'
                 message = f'Здравствуйте, {user.username}!\n\nСпасибо за регистрацию в нашем питомнике.'
                 from_email = settings.DEFAULT_FROM_EMAIL
                 recipient_list = [user.email]
 
-                # Используем EmailMessage для большей гибкости и отладки
                 email = EmailMessage(subject, message, from_email, recipient_list)
-                email.fail_silently = False  # Важно для отладки
+                email.fail_silently = False
                 email.send()
 
-                print("Письмо успешно отправлено!")  # Сообщение об успешной отправке
+                print("Письмо успешно отправлено!")
 
                 login(request, user)  # Автоматический вход
-                messages.success(request, "Вы успешно зарегистрировались и вошли в систему!")  # Сообщение об успехе
+                messages.success(request, "Вы успешно зарегистрировались и вошли в систему!")
                 return redirect('dogs:index')
             except Exception as e:
                 error_message = f"Ошибка при отправке письма: {type(e).__name__} - {str(e)}"
                 print(error_message)
-                messages.error(request, f"Ошибка при регистрации: {error_message}")  # Более информативное сообщение об ошибке
+                messages.error(request, f"Ошибка при регистрации: {error_message}")
         else:
-            for field, errors in form.errors.items():  # Вывод ошибок для каждого поля
+            for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"Ошибка в поле {form.fields[field].label if field in form.fields else field}: {error}")
     else:
@@ -112,3 +115,45 @@ def logout(request):
     """Представление для выхода пользователя."""
     django_logout(request)
     return redirect('dogs:index')
+
+
+def password_reset_request(request):
+    """Представление для запроса сброса пароля."""
+    if request.method == 'POST':
+        form = PasswordResetRequestForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            try:
+                # Поиск пользователя по email. Используем СВОЮ модель User
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                messages.error(request, "Пользователь с таким email не найден.")
+                return render(request, 'users/password_reset_request.html', {'form': form})
+
+            # Генерация случайного пароля
+            new_password = secrets.token_urlsafe(16)
+
+            # Установка нового пароля для пользователя
+            user.set_password(new_password)
+            user.save()
+
+            # Отправка письма с новым паролем
+            subject = 'Сброс пароля для вашего аккаунта'
+            message = render_to_string(
+                'users/password_reset_email.html',
+                {'user': user, 'new_password': new_password}
+            )
+            from_email = settings.DEFAULT_FROM_EMAIL
+            recipient_list = [user.email]
+            email = EmailMessage(subject, message, from_email, recipient_list)
+            email.fail_silently = False
+            email.send()
+
+            messages.success(request, "На ваш email отправлено письмо с новым паролем.")
+            return redirect('dogs:index')
+        else:
+            messages.error(request, "Пожалуйста, исправьте ошибки в форме.")
+    else:
+        form = PasswordResetRequestForm()
+    return render(request, 'users/password_reset_request.html', {'form': form})
+
