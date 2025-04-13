@@ -1,4 +1,3 @@
-# models.py
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.conf import settings
@@ -43,4 +42,7 @@ class Dog(models.Model):
     class Meta:
         verbose_name = 'Собака'
         verbose_name_plural = 'Собаки'
+        indexes = [
+            models.Index(fields=['breed'], name='dog_breed_idx'),  # Добавляем индекс
+        ]
 

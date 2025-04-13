@@ -1,4 +1,3 @@
-# views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Breed, Dog
 from .forms import DogForm
@@ -7,6 +6,9 @@ from django.urls import reverse
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger  # Импортируем пагинатор
+
+
 
 @require_http_methods(["POST"])
 @login_required
@@ -22,6 +24,7 @@ def add_dog_to_profile(request, dog_id):
 
     return redirect(request.META.get('HTTP_REFERER', reverse('dogs:dogs_list')))
 
+
 @require_http_methods(["DELETE"])
 @login_required
 def remove_dog_from_profile(request, dog_id):
@@ -29,6 +32,7 @@ def remove_dog_from_profile(request, dog_id):
     dog.owner = None
     dog.save()
     return JsonResponse({'message': 'Собака успешно удалена из профиля.'})
+
 
 @login_required
 def index(request):
@@ -40,20 +44,31 @@ def index(request):
 @login_required
 def breeds(request):
     title = 'Породы собак'
-    breeds = Breed.objects.all()
+    breeds = Breed.objects.prefetch_related('dogs').all()  # Используем prefetch_related
     breeds_data = []
     for breed in breeds:
-        dogs = Dog.objects.filter(breed=breed).order_by('?')[:3]
+        dogs = breed.dogs.order_by('?')[:3]  # Получаем собак непосредственно из связанного набора
         breeds_data.append({'breed': breed, 'dogs': dogs})
     context = {'title': title, 'breeds_data': breeds_data}
     return render(request, 'dogs/breeds.html', context)
 
+
 @login_required
 def dogs_list(request):
     title = 'Список всех собак'
-    dogs = Dog.objects.all()
+    dogs_list = Dog.objects.all()
+    paginator = Paginator(dogs_list, 6)  # Показывать 10 собак на странице
+    page = request.GET.get('page')
+    try:
+        dogs = paginator.page(page)
+    except PageNotAnInteger:
+        dogs = paginator.page(1)
+    except EmptyPage:
+        dogs = paginator.page(paginator.num_pages)
+
     context = {'title': title, 'dogs': dogs}
     return render(request, 'dogs/dogs_list.html', context)
+
 
 @login_required
 def dog_create(request):
@@ -73,6 +88,7 @@ def dog_create(request):
 
     context = {'title': title, 'form': form}
     return render(request, 'dogs/dog_create.html', context)
+
 
 @login_required
 def dog_update(request, pk):
@@ -95,6 +111,7 @@ def dog_update(request, pk):
     context = {'title': title, 'form': form, 'dog': dog}
     return render(request, 'dogs/dog_update.html', context)
 
+
 @login_required
 def dog_delete(request, pk):
     dog = get_object_or_404(Dog, pk=pk, owner=request.user)
@@ -102,6 +119,7 @@ def dog_delete(request, pk):
     dog.delete()
     messages.success(request, f"Собака '{dog_name}' успешно удалена.")
     return redirect(reverse('dogs:dogs_list'))
+
 
 @login_required
 def dog_read(request, pk):
@@ -111,10 +129,20 @@ def dog_read(request, pk):
     context = {'title': title, 'dog': dog, 'is_owner': is_owner}
     return render(request, 'dogs/dog_read.html', context)
 
+
 @login_required
 def all_dogs(request):
     title = 'Все собаки'
-    dogs = Dog.objects.all()
+    dogs_list = Dog.objects.all()
+    paginator = Paginator(dogs_list, 6)  # Показывать 10 собак на странице
+    page = request.GET.get('page')
+    try:
+        dogs = paginator.page(page)
+    except PageNotAnInteger:
+        dogs = paginator.page(1)
+    except EmptyPage:
+        dogs = paginator.page(paginator.num_pages)
+
     context = {'title': title, 'dogs': dogs}
     return render(request, 'dogs/all_dogs.html', context)
 

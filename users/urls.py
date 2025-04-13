@@ -10,6 +10,7 @@ urlpatterns = [
     path('logout/', views.logout, name='logout'),
     path('register/', views.register, name='register'),
     path('login/', views.user_login, name='user_login'),
-    
+    path('welcome/', views.welcome, name='welcome'),
+    path('logout_success/', views.logout_success, name='logout_success'),
     path('password_reset/', views.password_reset_request, name='password_reset_request'),  # Добавлен URL
 ]

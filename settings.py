@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'dogs',
     'users',
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [

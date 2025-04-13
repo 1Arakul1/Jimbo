@@ -4,13 +4,13 @@ from django.contrib.auth import authenticate, login, logout as django_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from django.core.mail import send_mail, EmailMessage
+from django.core.mail import EmailMessage
 from django.conf import settings
 from django.template.loader import render_to_string
 from .forms import LoginForm, RegisterForm, EditProfileForm, PasswordResetRequestForm
 from dogs.models import Dog
 import secrets
-from users.models import User  # Import your custom user model
+from users.models import User  # Импортируйте свою модель пользователя
 
 @login_required
 def user_profile(request):
@@ -46,7 +46,7 @@ def change_password(request):
         form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save()
-            update_session_auth_hash(request, user)
+            update_session_auth_hash(request, user)  # Сохраняем сессию
             messages.success(request, 'Пароль успешно изменен!')
             return redirect('users:user_profile')
         else:
@@ -66,7 +66,7 @@ def user_login(request):
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 login(request, user)
-                return redirect('dogs:index')
+                return redirect('users:welcome')  # Перенаправляем на страницу приветствия
             else:
                 messages.error(request, 'Неверное имя пользователя или пароль')
         else:
@@ -93,14 +93,11 @@ def register(request):
                 email.fail_silently = False
                 email.send()
 
-                print("Письмо успешно отправлено!")
-
-                login(request, user)  # Автоматический вход
                 messages.success(request, "Вы успешно зарегистрировались и вошли в систему!")
-                return redirect('dogs:index')
+                login(request, user)  # Автоматический вход
+                return redirect('users:welcome')  # Перенаправляем на страницу приветствия
             except Exception as e:
                 error_message = f"Ошибка при отправке письма: {type(e).__name__} - {str(e)}"
-                print(error_message)
                 messages.error(request, f"Ошибка при регистрации: {error_message}")
         else:
             for field, errors in form.errors.items():
@@ -114,8 +111,7 @@ def register(request):
 def logout(request):
     """Представление для выхода пользователя."""
     django_logout(request)
-    return redirect('dogs:index')
-
+    return redirect('users:logout_success')  # Перенаправляем на страницу выхода
 
 def password_reset_request(request):
     """Представление для запроса сброса пароля."""
@@ -124,7 +120,7 @@ def password_reset_request(request):
         if form.is_valid():
             email = form.cleaned_data['email']
             try:
-                # Поиск пользователя по email. Используем СВОЮ модель User
+                # Поиск пользователя по email. Используем свою модель User
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
                 messages.error(request, "Пользователь с таким email не найден.")
@@ -156,4 +152,19 @@ def password_reset_request(request):
     else:
         form = PasswordResetRequestForm()
     return render(request, 'users/password_reset_request.html', {'form': form})
+
+# Новые представления для приветствия и выхода
+@login_required  # Необязательно, но логично, чтобы увидеть приветствие после входа
+def welcome(request):
+    """Страница приветствия после входа."""
+    return render(request, 'users/welcome.html', {'user': request.user})
+
+
+def logout_success(request):
+    """Страница после выхода."""
+    return render(request, 'users/logout_success.html')
+
+
+
+
 
