@@ -97,12 +97,10 @@ def register(request):
                 login(request, user)  # Автоматический вход
                 return redirect('users:welcome')  # Перенаправляем на страницу приветствия
             except Exception as e:
-                error_message = f"Ошибка при отправке письма: {type(e).__name__} - {str(e)}"
-                messages.error(request, f"Ошибка при регистрации: {error_message}")
+                messages.error(request, f"Ошибка при регистрации: {str(e)}")
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"Ошибка в поле {form.fields[field].label if field in form.fields else field}: {error}")
+            # Больше не нужно перебирать form.errors, они отображаются в шаблоне
+            pass
     else:
         form = RegisterForm()
     return render(request, 'users/register.html', {'form': form})
